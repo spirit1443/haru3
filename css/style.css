@@ -341,3 +341,20 @@ h1 { margin: 0; font-size: 28px; letter-spacing: -0.03em; line-height: 1.2; }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
 }
+
+/* ---------- 발음 속도 ---------- */
+
+.rate-btn {
+  flex: none;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.rate-btn:active { transform: scale(.95); }

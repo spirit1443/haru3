@@ -1,6 +1,6 @@
 // 오프라인에서도 열리도록 앱 파일을 캐시한다.
 // 캐시 우선으로 응답하고, 뒤에서 새 버전을 받아 다음 실행 때 반영한다.
-const CACHE = 'haru3-v2';
+const CACHE = 'haru3-v3';
 const FILES = [
   './', 'index.html', 'css/style.css', 'manifest.webmanifest',
   'js/app.js', 'js/daily.js', 'js/quiz.js', 'js/storage.js', 'js/speech.js',

@@ -13,6 +13,7 @@ export function initialState() {
     wrongSentences: {},
     streak: 0,
     lastDoneDate: null,
+    speechRate: 0.8,
   };
 }
 

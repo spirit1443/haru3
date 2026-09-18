@@ -3,7 +3,7 @@ import { PATTERNS } from '../data/patterns.js';
 import { ensureToday, markDone, currentStreak, localDateStr, WORDS_PER_DAY } from './daily.js';
 import { buildQuiz, applyResult, makeChoices, tokenize, isSentenceCorrect, shuffle } from './quiz.js';
 import { loadState, saveState } from './storage.js';
-import { speak, canSpeak } from './speech.js';
+import { speak, canSpeak, nextRate, RATES, DEFAULT_RATE } from './speech.js';
 
 const wordById = new Map(WORDS.map((w) => [w.id, w]));
 const exampleById = new Map(PATTERNS.flatMap((p) => p.examples.map((e) => [e.id, { ...e, pattern: p.pattern }])));
@@ -32,6 +32,9 @@ const todayWords = () => Array.from({ length: WORDS_PER_DAY }, (_, k) => WORDS[(
 const todayPattern = () => PATTERNS[state.patternIndex % PATTERNS.length];
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const speechRate = () => (RATES.includes(state.speechRate) ? state.speechRate : DEFAULT_RATE);
+const rateBtn = () =>
+  canSpeak ? `<button class="rate-btn" data-action="rate" aria-label="발음 속도 ${speechRate()}배, 눌러서 바꾸기">속도 ${speechRate()}x</button>` : '';
 const speakBtn = (text, label = '발음 듣기') =>
   canSpeak ? `<button class="speak" data-action="speak" data-text="${esc(text)}" aria-label="${label}">${ICON_SPEAKER}</button>` : '';
 
@@ -53,8 +56,8 @@ function go(next) {
   window.scrollTo(0, 0);
 }
 
-function nav(title, backAction = 'home') {
-  return `<nav class="bar"><button class="icon-btn" data-action="${backAction}" aria-label="뒤로">${ICON_BACK}</button><span class="bar-title">${title}</span><span class="bar-spacer"></span></nav>`;
+function nav(title, { withRate = false } = {}) {
+  return `<nav class="bar"><button class="icon-btn" data-action="home" aria-label="뒤로">${ICON_BACK}</button><span class="bar-title">${title}</span><span class="bar-spacer"></span>${withRate ? rateBtn() : ''}</nav>`;
 }
 
 // ---------- 화면 ----------
@@ -99,7 +102,7 @@ function learnWordsView() {
   const w = words[view.i];
   const last = view.i === words.length - 1;
   return `
-    ${nav(`오늘의 단어 ${view.i + 1}/${words.length}`)}
+    ${nav(`오늘의 단어 ${view.i + 1}/${words.length}`, { withRate: true })}
     <article class="study-card">
       <p class="pos">${esc(w.pos)}</p>
       <div class="word-row"><h2 class="word">${esc(w.en)}</h2>${speakBtn(w.en)}</div>
@@ -120,7 +123,7 @@ function learnWordsView() {
 function learnSentencesView() {
   const p = todayPattern();
   return `
-    ${nav('오늘의 문장')}
+    ${nav('오늘의 문장', { withRate: true })}
     <article class="study-card pattern-card">
       <p class="pos">오늘의 패턴</p>
       <h2 class="pattern">${esc(p.pattern)}</h2>
@@ -146,6 +149,7 @@ function quizHeader() {
     <nav class="bar">
       <button class="icon-btn" data-action="quit-quiz" aria-label="퀴즈 그만하기">${ICON_BACK}</button>
       <div class="progress" role="progressbar" aria-valuenow="${view.i}" aria-valuemax="${n}"><span style="width:${pct}%"></span></div>
+      ${rateBtn()}
       <span class="bar-count">${view.i + 1}/${n}</span>
     </nav>`;
 }
@@ -302,7 +306,15 @@ app.addEventListener('click', (ev) => {
   if (!el || el.disabled) return;
   switch (el.dataset.action) {
     case 'home': return go({ name: 'home' });
-    case 'speak': return speak(el.dataset.text);
+    case 'speak': return speak(el.dataset.text, speechRate());
+    case 'rate': {
+      commit({ ...state, speechRate: nextRate(speechRate()) });
+      render();
+      // 바뀐 속도를 바로 들어 볼 수 있게 화면의 첫 발음을 재생한다
+      const sample = app.querySelector('.speak')?.dataset.text;
+      if (sample) speak(sample, speechRate());
+      return;
+    }
     case 'learn-words': return go({ name: 'learnWords', i: 0 });
     case 'word-prev': return go({ ...view, i: view.i - 1 });
     case 'word-next': return go({ ...view, i: view.i + 1 });
