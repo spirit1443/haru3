@@ -5,7 +5,7 @@ import { PATTERNS } from '../data/patterns.js';
 import { tokenize } from '../js/quiz.js';
 
 test('단어: 3의 배수, id와 뜻 중복 없음', () => {
-  assert.equal(WORDS.length % 3, 0);
+  assert.equal(WORDS.length, 999);
   assert.equal(new Set(WORDS.map((w) => w.id)).size, WORDS.length);
   assert.equal(new Set(WORDS.map((w) => w.ko)).size, WORDS.length);
   for (const w of WORDS) assert.ok(w.en && w.ko && w.pos && w.example && w.exampleKo, w.en);

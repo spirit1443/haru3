@@ -1,4 +1,5 @@
-// 생활 영어 단어 300개 (하루 3개씩 100일치). 같은 주제 단어가 연달아 나오도록 묶어 두었다.
+// 생활 영어 단어 999개 (하루 3개씩 333일치). 기본 300개 + words-more.js 699개.
+import { MORE_ROWS } from './words-more.js';
 // [영어, 품사, 뜻, 예문, 예문 해석]
 const rows = [
   // 약속·일상 볼일
@@ -323,4 +324,4 @@ const rows = [
   ['already', '부사', '이미, 벌써', "I've already eaten.", '나 벌써 먹었어.'],
 ];
 
-export const WORDS = rows.map(([en, pos, ko, example, exampleKo]) => ({ id: en, en, pos, ko, example, exampleKo }));
+export const WORDS = [...rows, ...MORE_ROWS].map(([en, pos, ko, example, exampleKo]) => ({ id: en, en, pos, ko, example, exampleKo }));
