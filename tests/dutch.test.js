@@ -7,65 +7,93 @@ import vm from 'node:vm';
 const html = readFileSync(new URL('../dutch.html', import.meta.url), 'utf8');
 const src = html.match(/<script id="calc">([\s\S]*?)<\/script>/)[1];
 const ctx = {};
-vm.runInNewContext(src + '; this.calcRound = calcRound; this.summarize = summarize;', ctx);
-const { calcRound, summarize } = ctx;
+vm.runInNewContext(src + '; this.calcRound = calcRound; this.calcAll = calcAll;', ctx);
+const { calcRound, calcAll } = ctx;
 
-const base = { total: 200000, m: 4, mAmt: 30000, w: 3, wAmt: 20000 };
+// 남자 4명×40,000 + 여자 3명×20,000 = 220,000원 걷고 187,000원 결제 → 33,000원 남음
+const base = { m: 4, mAmt: 40000, w: 3, wAmt: 20000, bill: 187000 };
 
-test('남은 금액을 남자끼리 나눔', () => {
+test('남은 돈 계산', () => {
+  const x = calcRound({ ...base, split: 'eq' });
+  assert.equal(x.collected, 220000);
+  assert.equal(x.left, 33000);
+});
+
+test('남자만 환급: 8,250원 → 8,000원으로 내림, 나머지는 총무 몫', () => {
   const x = calcRound({ ...base, split: 'm' });
-  assert.equal(x.rest, 20000);
-  assert.equal(x.mFinal, 35000);
-  assert.equal(x.wFinal, 20000);
-  assert.equal(x.surplus, 0);
+  assert.equal(x.mRefund, 8000);
+  assert.equal(x.wRefund, 0);
+  assert.equal(x.mNet, 32000);
+  assert.equal(x.wNet, 20000);
+  assert.equal(x.keep, 1000);
 });
 
-test('남녀 모두 나누면 1,000원 단위로 올림', () => {
-  const x = calcRound({ ...base, split: 'all' });
-  assert.equal(x.extra, 3000);
-  assert.equal(x.mFinal, 33000);
-  assert.equal(x.wFinal, 23000);
-  assert.equal(x.surplus, 1000);
+test('남녀 같게 환급: 4,714원 → 4,000원', () => {
+  const x = calcRound({ ...base, split: 'eq' });
+  assert.equal(x.mRefund, 4000);
+  assert.equal(x.wRefund, 4000);
+  assert.equal(x.refunded, 28000);
+  assert.equal(x.keep, 5000);
 });
 
-test('여자끼리 나눔', () => {
+test('남녀 낸 비율대로 환급: 2 대 1', () => {
+  const x = calcRound({ ...base, split: 'ratio' });
+  assert.equal(x.mRefund, 6000);
+  assert.equal(x.wRefund, 3000);
+  assert.equal(x.keep, 0);
+});
+
+test('여자만 환급', () => {
   const x = calcRound({ ...base, split: 'w' });
-  assert.equal(x.mFinal, 30000);
-  assert.equal(x.wFinal, 27000);
-  assert.equal(x.surplus, 1000);
+  assert.equal(x.wRefund, 11000);
+  assert.equal(x.wNet, 9000);
+  assert.equal(x.keep, 0);
 });
 
-test('남은 금액이 0이면 추가분 없음', () => {
-  const x = calcRound({ ...base, total: 180000, split: 'all' });
-  assert.equal(x.extra, 0);
-  assert.equal(x.mFinal, 30000);
-  assert.equal(x.surplus, 0);
+test('돈이 모자라면 경고만', () => {
+  const x = calcRound({ ...base, bill: 230000, split: 'eq' });
+  assert.equal(x.error, '10000원 모자라요');
+  assert.equal(x.mRefund, undefined);
 });
 
-test('설정 금액이 총액보다 크면 경고', () => {
-  const x = calcRound({ ...base, total: 150000, split: 'all' });
-  assert.match(x.error, /많아요/);
-  assert.equal(x.mFinal, undefined);
+test('돌려받을 사람이 없으면 경고', () => {
+  assert.match(calcRound({ ...base, w: 0, bill: 150000, split: 'w' }).error, /여자가 없어요/);
 });
 
-test('나눌 사람이 없으면 경고', () => {
-  const x = calcRound({ ...base, w: 0, split: 'w' });
-  assert.match(x.error, /나눌 사람/);
+test('남은 돈이 0이면 환급 없음', () => {
+  const x = calcRound({ ...base, bill: 220000, split: 'm' });
+  assert.equal(x.mRefund, 0);
+  assert.equal(x.keep, 0);
 });
 
-test('빈칸과 문자열 입력은 숫자로 처리', () => {
-  const x = calcRound({ total: '100000', m: '2', mAmt: '', w: '', wAmt: '', split: 'm' });
-  assert.equal(x.mFinal, 50000);
-});
-
-test('여러 차수 합산', () => {
-  const s = summarize([
-    { ...base, split: 'all' },
-    { total: 60000, m: 3, mAmt: 10000, w: 2, wAmt: 5000, split: 'm' },
+test('다음 차수로 이월', () => {
+  const s = calcAll([
+    { ...base, mode: 'carry', split: 'eq' },
+    { m: 4, mAmt: 10000, w: 3, wAmt: 5000, bill: 60000, split: 'eq' },
   ]);
   assert.ok(s.ok);
-  // 2차: 남은 20,000원을 남자 3명이 나눔 → 6,667원 → 7,000원으로 올림
-  assert.equal(s.mTotal, 33000 + 17000);
-  assert.equal(s.wTotal, 23000 + 5000);
-  assert.equal(s.surplus, 1000 + 1000);
+  const [r1, r2] = s.results;
+  assert.equal(r1.carryOut, 33000);
+  assert.equal(r1.mNet, 40000);
+  assert.equal(r2.carryIn, 33000);
+  assert.equal(r2.left, 55000 + 33000 - 60000);
+  assert.equal(r2.mRefund, 4000);
+  assert.equal(s.mTotal, 40000 + 6000);
+  assert.equal(s.wTotal, 20000 + 1000);
+  assert.equal(s.keep, 0);
+});
+
+test('이월금만으로 2차 결제', () => {
+  const s = calcAll([
+    { ...base, mode: 'carry' },
+    { m: 4, w: 3, bill: 30000, split: 'eq' },
+  ]);
+  assert.equal(s.results[1].left, 3000);
+  assert.equal(s.results[1].keep, 3000);
+});
+
+test('마지막 차수의 이월 선택은 환급으로 처리', () => {
+  const x = calcAll([{ ...base, mode: 'carry', split: 'eq' }]).results[0];
+  assert.equal(x.mode, 'refund');
+  assert.equal(x.mRefund, 4000);
 });
