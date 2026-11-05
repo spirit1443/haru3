@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>남녀 더치페이</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --card: #fff; --text: #1d1f23; --muted: #6b7280; --line: #e5e7eb;
+    --accent: #3b6ef5; --accent-soft: #e8eefe; --male: #2f6fde; --female: #d9468a;
+    --warn: #c2410c; --warn-soft: #fff1e8; --ok: #15803d;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121317; --card: #1c1e24; --text: #ececf1; --muted: #9ca3af; --line: #2c2f37;
+      --accent: #7b9cff; --accent-soft: #24304f; --male: #79a6ff; --female: #f27bb5;
+      --warn: #fb923c; --warn-soft: #3a2416; --ok: #4ade80;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  }
+  main { max-width: 520px; margin: 0 auto; padding: 16px 16px 48px; }
+  h1 { font-size: 22px; margin: 8px 0 4px; }
+  .sub { color: var(--muted); font-size: 14px; margin: 0 0 16px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+  .card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .card-head h2 { font-size: 18px; margin: 0; }
+  .del { background: none; border: none; color: var(--muted); font-size: 14px; cursor: pointer; padding: 4px 8px; }
+  label.field { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+  input[type=text] {
+    width: 100%; font-size: 17px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px;
+    background: var(--bg); color: var(--text); text-align: right; font-variant-numeric: tabular-nums;
+  }
+  input[type=text]:focus { outline: 2px solid var(--accent); border-color: transparent; }
+  .row { display: grid; grid-template-columns: 56px 1fr 1.6fr; gap: 8px; align-items: end; margin-top: 12px; }
+  .tag { font-weight: 700; padding-bottom: 10px; }
+  .tag.m { color: var(--male); } .tag.w { color: var(--female); }
+  .rest { margin-top: 14px; padding: 10px 12px; border-radius: 10px; background: var(--accent-soft); display: flex; justify-content: space-between; font-variant-numeric: tabular-nums; }
+  .rest.neg { background: var(--warn-soft); color: var(--warn); }
+  .split { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 10px; }
+  .split label { text-align: center; border: 1px solid var(--line); border-radius: 10px; padding: 9px 4px; font-size: 14px; cursor: pointer; }
+  .split input { display: none; }
+  .split input:checked + span { color: var(--accent); font-weight: 700; }
+  .split label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+  .result { margin-top: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .result .box { border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
+  .result .k { font-size: 13px; color: var(--muted); }
+  .result .v { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .result .m .v { color: var(--male); } .result .w .v { color: var(--female); }
+  .note { font-size: 13px; color: var(--muted); margin-top: 8px; }
+  .warn { margin-top: 12px; color: var(--warn); background: var(--warn-soft); padding: 10px 12px; border-radius: 10px; font-size: 14px; }
+  .btn { display: block; width: 100%; font-size: 16px; padding: 12px; border-radius: 12px; border: 1px dashed var(--accent); background: none; color: var(--accent); cursor: pointer; margin-bottom: 14px; }
+  .btn.solid { border-style: solid; background: var(--accent); color: #fff; font-weight: 700; }
+  .btn.ghost { border: none; color: var(--muted); font-size: 14px; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 15px; }
+  th, td { padding: 8px 4px; border-bottom: 1px solid var(--line); text-align: right; }
+  th:first-child, td:first-child { text-align: left; }
+  th { font-size: 13px; color: var(--muted); font-weight: 500; }
+  tr.total td { font-weight: 700; border-bottom: none; }
+  .summary-foot { margin-top: 10px; font-size: 14px; color: var(--muted); }
+  .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 20px; font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<main>
+  <h1>남녀 더치페이</h1>
+  <p class="sub">남녀 1인당 금액을 정하고, 남는 돈은 누가 나눌지 고르세요. 추가분은 1,000원 단위로 올려요.</p>
+  <div id="rounds"></div>
+  <button class="btn" id="add">+ 차수 추가</button>
+  <section class="card" id="summary"></section>
+  <button class="btn solid" id="copy">결과 복사</button>
+  <button class="btn ghost" id="reset">초기화</button>
+</main>
+<div class="toast" id="toast"></div>
+
+<script id="calc">
+// 한 차수를 계산한다. 화면과 테스트가 함께 쓰는 순수 함수.
+function calcRound(r) {
+  const n = (v) => Math.max(0, Math.floor(Number(v) || 0));
+  const total = n(r.total), m = n(r.m), mAmt = n(r.mAmt), w = n(r.w), wAmt = n(r.wAmt);
+  const split = r.split || 'all';
+  const fixed = m * mAmt + w * wAmt;
+  const rest = total - fixed;
+  const base = { total, m, w, fixed, rest, split };
+  if (rest < 0) return { ...base, error: `설정 금액이 총액보다 ${rest * -1}원 많아요` };
+  const toM = split === 'm' || split === 'all';
+  const toW = split === 'w' || split === 'all';
+  const count = (toM ? m : 0) + (toW ? w : 0);
+  if (rest > 0 && count === 0) return { ...base, error: '남은 금액을 나눌 사람이 없어요' };
+  const extra = rest > 0 ? Math.ceil(rest / count / 1000) * 1000 : 0;
+  const mFinal = mAmt + (toM ? extra : 0);
+  const wFinal = wAmt + (toW ? extra : 0);
+  const collected = m * mFinal + w * wFinal;
+  return { ...base, extra, mFinal, wFinal, collected, surplus: collected - total };
+}
+
+function summarize(rounds) {
+  const results = rounds.map(calcRound);
+  const ok = results.every((x) => !x.error);
+  const sum = (k) => results.reduce((a, x) => a + (x[k] || 0), 0);
+  return { results, ok, mTotal: sum('mFinal'), wTotal: sum('wFinal'), total: sum('total'), collected: sum('collected'), surplus: sum('surplus') };
+}
+</script>
+
+<script>
+const KEY = 'dutch-pay-v1';
+const SPLITS = [['m', '남자끼리'], ['all', '남녀 모두'], ['w', '여자끼리']];
+const won = (v) => (Number(v) || 0).toLocaleString('ko-KR');
+const digits = (s) => String(s).replace(/[^\d]/g, '');
+const blank = (prev) => ({ total: '', m: prev ? prev.m : '', mAmt: '', w: prev ? prev.w : '', wAmt: '', split: 'all' });
+
+let rounds;
+try { rounds = JSON.parse(localStorage.getItem(KEY)); } catch { rounds = null; }
+if (!Array.isArray(rounds) || !rounds.length) rounds = [blank()];
+
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(rounds)); } catch {} };
+const $ = (s, el = document) => el.querySelector(s);
+
+function input(i, key, label, money) {
+  const v = rounds[i][key];
+  const shown = v === '' ? '' : (money ? won(v) : v);
+  return `<div><label class="field">${label}</label><input type="text" inputmode="numeric" data-i="${i}" data-k="${key}" data-money="${money ? 1 : ''}" value="${shown}" placeholder="0"></div>`;
+}
+
+function renderRounds() {
+  $('#rounds').innerHTML = rounds.map((r, i) => `
+    <section class="card" data-card="${i}">
+      <div class="card-head"><h2>${i + 1}차</h2>${i > 0 ? `<button class="del" data-del="${i}">삭제</button>` : ''}</div>
+      ${input(i, 'total', '총액 (원)', true)}
+      <div class="row"><span class="tag m">남자</span>${input(i, 'm', '인원', false)}${input(i, 'mAmt', '1인당 (원)', true)}</div>
+      <div class="row"><span class="tag w">여자</span>${input(i, 'w', '인원', false)}${input(i, 'wAmt', '1인당 (원)', true)}</div>
+      <div class="rest" data-rest></div>
+      <div class="split">${SPLITS.map(([v, t]) => `<label><input type="radio" name="split${i}" data-i="${i}" value="${v}" ${r.split === v ? 'checked' : ''}><span>${t}</span></label>`).join('')}</div>
+      <div data-out></div>
+    </section>`).join('');
+  rounds.forEach((_, i) => updateRound(i));
+}
+
+function updateRound(i) {
+  const card = $(`[data-card="${i}"]`);
+  const x = calcRound(rounds[i]);
+  const rest = $('[data-rest]', card);
+  rest.className = 'rest' + (x.rest < 0 ? ' neg' : '');
+  rest.innerHTML = `<span>남은 금액</span><b>${won(x.rest)}원</b>`;
+  const out = $('[data-out]', card);
+  if (x.error) { out.innerHTML = `<div class="warn">${x.error.replace(/\d+/, (d) => won(d))}</div>`; return; }
+  out.innerHTML = `
+    <div class="result">
+      <div class="box m"><div class="k">남자 1인당</div><div class="v">${won(x.mFinal)}원</div></div>
+      <div class="box w"><div class="k">여자 1인당</div><div class="v">${won(x.wFinal)}원</div></div>
+    </div>
+    <div class="note">걷는 돈 ${won(x.collected)}원${x.extra ? ` · 1인당 추가 ${won(x.extra)}원` : ''}${x.surplus ? ` · 총무 몫 ${won(x.surplus)}원` : ''}</div>`;
+}
+
+function renderSummary() {
+  const s = summarize(rounds);
+  const rows = s.results.map((x, i) => `<tr><td>${i + 1}차</td><td>${x.error ? '-' : won(x.mFinal)}</td><td>${x.error ? '-' : won(x.wFinal)}</td></tr>`).join('');
+  $('#summary').innerHTML = `
+    <div class="card-head"><h2>합산</h2></div>
+    <table>
+      <tr><th>차수</th><th>남자 1인당</th><th>여자 1인당</th></tr>
+      ${rows}
+      ${rounds.length > 1 ? `<tr class="total"><td>전 차수 참석</td><td>${won(s.mTotal)}</td><td>${won(s.wTotal)}</td></tr>` : ''}
+    </table>
+    <div class="summary-foot">${s.ok
+      ? `총액 ${won(s.total)}원 · 걷는 돈 ${won(s.collected)}원${s.surplus ? ` · 총무 몫 ${won(s.surplus)}원` : ''}`
+      : '경고가 있는 차수를 먼저 고쳐 주세요.'}</div>`;
+}
+
+function shareText() {
+  const s = summarize(rounds);
+  const lines = ['[더치페이 정산]'];
+  const label = { m: '남자끼리', all: '남녀 모두', w: '여자끼리' };
+  s.results.forEach((x, i) => {
+    if (x.error) { lines.push(`${i + 1}차: 확인 필요 (${x.error})`); return; }
+    lines.push(`${i + 1}차 총 ${won(x.total)}원 (남${x.m}·여${x.w}, 남은 돈 ${label[x.split]})`);
+    lines.push(`  남자 ${won(x.mFinal)}원 / 여자 ${won(x.wFinal)}원`);
+  });
+  if (rounds.length > 1 && s.ok) lines.push(`전 차수 참석: 남자 ${won(s.mTotal)}원 / 여자 ${won(s.wTotal)}원`);
+  if (s.ok && s.surplus) lines.push(`총무 몫 ${won(s.surplus)}원`);
+  return lines.join('\n');
+}
+
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove('show'), 1600);
+}
+
+document.addEventListener('input', (e) => {
+  const el = e.target;
+  if (!el.dataset.k) return;
+  const i = +el.dataset.i, raw = digits(el.value).replace(/^0+(?=\d)/, '');
+  rounds[i][el.dataset.k] = raw;
+  if (el.dataset.money) {
+    const pos = el.value.length - el.selectionStart;
+    el.value = raw === '' ? '' : won(raw);
+    const p = Math.max(0, el.value.length - pos); el.setSelectionRange(p, p);
+  } else el.value = raw;
+  updateRound(i); renderSummary(); save();
+});
+
+document.addEventListener('change', (e) => {
+  const el = e.target;
+  if (el.type !== 'radio') return;
+  rounds[+el.dataset.i].split = el.value;
+  updateRound(+el.dataset.i); renderSummary(); save();
+});
+
+document.addEventListener('click', (e) => {
+  const del = e.target.closest('[data-del]');
+  if (del) { rounds.splice(+del.dataset.del, 1); renderRounds(); renderSummary(); save(); }
+});
+
+$('#add').onclick = () => { rounds.push(blank(rounds[rounds.length - 1])); renderRounds(); renderSummary(); save(); };
+$('#reset').onclick = () => { if (confirm('입력한 내용을 모두 지울까요?')) { rounds = [blank()]; renderRounds(); renderSummary(); save(); } };
+$('#copy').onclick = async () => {
+  const text = shareText();
+  try { await navigator.clipboard.writeText(text); toast('복사했어요. 카톡에 붙여넣으세요'); }
+  catch { prompt('아래 내용을 복사하세요', text); }
+};
+
+renderRounds(); renderSummary();
+</script>
+</body>
+</html>
